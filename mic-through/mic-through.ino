@@ -1,6 +1,6 @@
 #include <Audio.h>
 #include <Wire.h>
-//sécurité
+
 // --- OBJETS AUDIO ---
 AudioInputI2S            micInput;
 AudioAnalyzeNoteFrequency notefreq;
@@ -21,25 +21,24 @@ float noteRef[] = {261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.2
 const int scaleSize = 8;
 float ratio = 1.0;
 float readIndex = 0.0;
-int16_t audioBuffer[512]; 
-foat valPot;
-
+int16_t audioBuffer[1024]; 
+//float val_pot, valPot2;
 void setup() {
   Serial.begin(115200);
   AudioMemory(120); 
 
   audioShield.enable();
   audioShield.inputSelect(AUDIO_INPUT_MIC);
-  audioShield.micGain(45);
-
+  audioShield.micGain(25);
+  audioShield.volume(0.5);
   notefreq.begin(0.30);
   queue.begin();
   Serial.println("Système Auto-Tune prêt...");
 }
 
 void loop() {
-  valPot=analogread(A9);
-  audioShield.volume(valPot/1024);
+  //val_pot=analogRead(19);
+  //valPot2 = analogRead(22)/1024;
 
   // 1. ANALYSE (Ta logique)
   if (notefreq.available()) {
@@ -48,6 +47,13 @@ void loop() {
       float freqCor = findClosestNote(freq);
       // Correction de la formule : Ratio = Cible / Entrée
       ratio = freqCor / freq; 
+      Serial.print("Entrée: ");
+      Serial.print(freq);
+      Serial.print(" Hz | Cible: ");
+      Serial.print(freqCor);
+      Serial.print(" Hz | Ratio: ");
+      Serial.println(ratio);
+      //Serial.println(val_pot);
     }
   }
 
@@ -59,7 +65,7 @@ void loop() {
     static int writeIdx = 0;
     for(int j=0; j<128; j++) {
       audioBuffer[writeIdx] = bufferIn[j];
-      writeIdx = (writeIdx + 1) % 512;
+      writeIdx = (writeIdx + 1) % 1024;
     }
     queue.freeBuffer();
 
@@ -67,14 +73,14 @@ void loop() {
     if (bufferOut != NULL) {
       for (int i = 0; i < 128; i++) {
         int base = (int)readIndex;
-        int next = (base + 1) % 512;
+        int next = (base + 1) % 1024;
         float fraction = readIndex - base;
 
         // Interpolation pour éviter les grésillements
         bufferOut[i] = (audioBuffer[base] * (1.0 - fraction)) + (audioBuffer[next] * fraction);
 
-        readIndex += ratio; // Application du RATIO ici
-        if (readIndex >= 512) readIndex -= 512;
+        readIndex += ratio; //*valPot2; // Application du RATIO ici
+        if (readIndex >= 1024) readIndex -= 1024;
       }
       playQueue.playBuffer();
     }
