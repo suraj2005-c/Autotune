@@ -22,6 +22,7 @@ const int scaleSize = 8;
 float ratio = 1.0;
 float readIndex = 0.0;
 int16_t audioBuffer[512]; 
+foat valPot;
 
 void setup() {
   Serial.begin(115200);
@@ -30,7 +31,6 @@ void setup() {
   audioShield.enable();
   audioShield.inputSelect(AUDIO_INPUT_MIC);
   audioShield.micGain(45);
-  audioShield.volume(0.7);
 
   notefreq.begin(0.30);
   queue.begin();
@@ -38,6 +38,9 @@ void setup() {
 }
 
 void loop() {
+  valPot=analogread(A9);
+  audioShield.volume(valPot/1024);
+
   // 1. ANALYSE (Ta logique)
   if (notefreq.available()) {
     float freq = notefreq.read();
