@@ -1,24 +1,30 @@
 #include <Audio.h>
 #include <Wire.h>
 
-// Objets Audio
-AudioInputI2S            micInput;       
-AudioOutputI2S           headphones;      
+// --- OBJETS AUDIO ---
+AudioInputI2S            micInput;
 AudioAnalyzeNoteFrequency notefreq;
+AudioRecordQueue         queue;      // Capture le son pour le modifier
+AudioPlayQueue           playQueue;  // Renvoie le son modifié
+AudioOutputI2S           headphones;
 AudioControlSGTL5000     audioShield;
 
-// Connexions globales (indispensable)
-AudioConnection          patch0(micInput, 0, headphones, 0);
-AudioConnection          patch1(micInput, 0, headphones, 1);
-AudioConnection          patch2(micInput, 0, notefreq, 0);
+// --- CONNEXIONS (MODIFIÉES) ---
+// On ne branche plus micInput sur headphones en direct !
+AudioConnection          patch2(micInput, 0, notefreq, 0); 
+AudioConnection          patch3(micInput, 0, queue, 0);    
+AudioConnection          patch4(playQueue, 0, headphones, 0);
+AudioConnection          patch5(playQueue, 0, headphones, 1);
 
+// --- TA GAMME ET TES VARIABLES ---
 float noteRef[] = {261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25};
 const int scaleSize = 8;
+float ratio = 1.0;
+float readIndex = 0.0;
+int16_t audioBuffer[512]; 
 
 void setup() {
   Serial.begin(115200);
-  delay(1000); 
-  
   AudioMemory(120); 
 
   audioShield.enable();
@@ -26,24 +32,48 @@ void setup() {
   audioShield.micGain(45);
   audioShield.volume(0.7);
 
-  notefreq.begin(0.30); // Seuil plus tolérant
-  Serial.println("Système démarré...");
+  notefreq.begin(0.30);
+  queue.begin();
+  Serial.println("Système Auto-Tune prêt...");
 }
 
 void loop() {
+  // 1. ANALYSE (Ta logique)
   if (notefreq.available()) {
     float freq = notefreq.read();
-    float prob = notefreq.probability();
-    
-
-    if (prob > 0.6) { 
+    if (notefreq.probability() > 0.6) {
       float freqCor = findClosestNote(freq);
-      float ratio = freq/freCor;
-      Serial.print("Détecté: ");
-      Serial.print(freq);
-      Serial.print(" Hz | Corrigé: ");
-      Serial.print(freqCor);
-      Serial.println(" Hz");
+      // Correction de la formule : Ratio = Cible / Entrée
+      ratio = freqCor / freq; 
+    }
+  }
+
+  // 2. TRAITEMENT (L'effet élastique)
+  if (queue.available() >= 1) {
+    int16_t* bufferIn = queue.readBuffer();
+    
+    // On remplit le tampon circulaire
+    static int writeIdx = 0;
+    for(int j=0; j<128; j++) {
+      audioBuffer[writeIdx] = bufferIn[j];
+      writeIdx = (writeIdx + 1) % 512;
+    }
+    queue.freeBuffer();
+
+    int16_t* bufferOut = playQueue.getBuffer();
+    if (bufferOut != NULL) {
+      for (int i = 0; i < 128; i++) {
+        int base = (int)readIndex;
+        int next = (base + 1) % 512;
+        float fraction = readIndex - base;
+
+        // Interpolation pour éviter les grésillements
+        bufferOut[i] = (audioBuffer[base] * (1.0 - fraction)) + (audioBuffer[next] * fraction);
+
+        readIndex += ratio; // Application du RATIO ici
+        if (readIndex >= 512) readIndex -= 512;
+      }
+      playQueue.playBuffer();
     }
   }
 }
