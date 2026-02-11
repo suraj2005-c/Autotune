@@ -1,6 +1,6 @@
 #include <Audio.h>
 #include <Wire.h>
-
+//sécurité
 // --- OBJETS AUDIO ---
 AudioInputI2S            micInput;
 AudioAnalyzeNoteFrequency notefreq;
