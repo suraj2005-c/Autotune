@@ -27,7 +27,7 @@ class MyDsp : public AudioStream
     Fm fm;
     float ratio = 1.0;
     float readIndex = 0.0;
-    int16_t audioBuffer[1024]; // Ton tampon circulaire [cite: 11]
+    int16_t audioBuffer[1024]; // tampon circulaire 
     int writeIdx = 0;
     float _gain = 1.0;
 };
