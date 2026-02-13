@@ -28,10 +28,10 @@ void MyDsp::setIndex(float freq){
 }
 
 // set sine wave gain
-void MyDsp::setGain(float gain){
-  fm.setGain(gain);
+void MyDsp::setGain(float g){
+  this->gain = g;   // On met à jour la variable utilisée dans update()
+  fm.setGain(g);    // On garde ça si 'fm' en a aussi besoin
 }
-
 
 void MyDsp::update(void) {
   audio_block_t *inBlock = receiveReadOnly(0);
@@ -54,6 +54,7 @@ void MyDsp::update(void) {
       float fraction = readIndex - (float)base;
 
       float sample = (audioBuffer[base] * (1.0f - fraction)) + (audioBuffer[next] * fraction);
+      sample=sample*gain;
       outBlock->data[i] = (int16_t)sample;
 
       // MISE À JOUR DE L'INDEX
