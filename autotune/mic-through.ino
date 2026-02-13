@@ -32,14 +32,15 @@ float val_pot, valPot2;
 void setup() {
   Serial.begin(115200);
   AudioMemory(160); 
-
   audioShield.enable();
   audioShield.inputSelect(AUDIO_INPUT_MIC);
+  audioShield.volume(0.6); // Volume à 60%
+  audioShield.unmuteHeadphone(); // <--- AJOUTE ÇA
   audioShield.micGain(25);
   notefreq.begin(0.30);
-  //queue.begin();
-  Serial.println("Système Auto-Tune prêt brrrrrr ");
+  Serial.println("Système prêt");
 }
+
 
 void loop() {
   val_pot=analogRead(19);
