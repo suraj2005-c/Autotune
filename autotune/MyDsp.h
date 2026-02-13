@@ -29,7 +29,7 @@ class MyDsp : public AudioStream
     float readIndex = 0.0;
     int16_t audioBuffer[1024]; // tampon circulaire 
     int writeIdx = 0;
-    float _gain = 1.0;
+    float gain = 1.0;
 };
 
 #endif
