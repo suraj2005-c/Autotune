@@ -1,7 +1,7 @@
 #include <Audio.h>
 #include <Wire.h>
 #include "MyDsp.h"
-
+//2 buffers
 // --- OBJETS AUDIO ---
 AudioInputI2S            micInput;
 AudioAnalyzeNoteFrequency notefreq;
@@ -43,9 +43,9 @@ void setup() {
 
 
 void loop() {
-  val_pot=analogRead(19);
+  val_pot=analogRead(19)/1024.0;
   valPot2 = analogRead(22)/1024.0;
-  
+  monAutoTune.setGain(val_pot);
   // 1. ANALYSE (Ta logique)
   if (notefreq.available()) {
     float freq = notefreq.read();
@@ -53,6 +53,7 @@ void loop() {
       float freqCor = findClosestNote(freq);
       // Correction de la formule : Ratio = Cible / Entrée
       ratio = freqCor / freq; 
+      monAutoTune.setRatio(ratio);
       Serial.print("Entrée: ");
       Serial.print(freq);
       Serial.print(" Hz | Cible: ");
@@ -60,6 +61,8 @@ void loop() {
       Serial.print(" Hz | Ratio: ");
       Serial.println(ratio);
       Serial.println(val_pot);
+      Serial.println(valPot2);
+
     }
   }
 
