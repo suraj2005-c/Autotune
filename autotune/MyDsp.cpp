@@ -1,79 +1,112 @@
 #include "MyDsp.h"
 
-#define MULT_16 32767
-
 MyDsp::MyDsp() : 
 AudioStream(AUDIO_INPUTS, new audio_block_t*[AUDIO_INPUTS]),
-
 fm(AUDIO_SAMPLE_RATE_EXACT)
 {
+  memset(audioBuffer, 0, sizeof(audioBuffer));
+  memset(audioBuffer2, 0, sizeof(audioBuffer2));
 }
 
 MyDsp::~MyDsp(){}
 
-void MyDsp::setCFreq(float freq){
-  fm.setCFreq(freq);
-}
+void MyDsp::setCFreq(float freq){ fm.setCFreq(freq); }
+void MyDsp::setMFreq(float freq){ fm.setMFreq(freq); }
+void MyDsp::setIndex(float freq){ fm.setIndex(freq); }
 
-void MyDsp::setMFreq(float freq){
-  fm.setMFreq(freq);
-}
-
-void MyDsp::setIndex(float freq){
-  fm.setIndex(freq);
-}
-
-// set sine wave gain
 void MyDsp::setGain(float g){
-  this->gain = g;   // On met à jour la variable utilisée dans update()
-  fm.setGain(g);    // On garde ça si 'fm' en a aussi besoin
+  this->gain = g;
+  fm.setGain(g);
 }
 
 void MyDsp::update(void) {
   audio_block_t *inBlock = receiveReadOnly(0);
-  audio_block_t* outBlock = allocate();
-  if (!inBlock) return;
+  audio_block_t *outBlock = allocate();
 
-  // 1. Stockage des données entrantes
-  for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-    if (ecritureA){
-      audioBuffer[writeIdx] = inBlock->data[i]; 
-    }
-    else
-      audioBuffer2[writeIdx] = inBlock->data[i]; 
-
-    int base = (int)readIndex;
-    int next = (base + 1) % 1024;
-    float fraction = readIndex - (float)base;
-
- // INTERPOLATION
-
-     if (ecritureA) 
-      sample = (audioBuffer2[base] * (1.0f - fraction)) + (audioBuffer2[next] * fraction);
-    else
-      sample = (audioBuffer[base] * (1.0f - fraction)) + (audioBuffer[next] * fraction);
-
-
-    sample=sample*gain;
-
-    outBlock->data[i] = (int16_t)sample;
-
-    writeIdx++; 
-
-      // MISE À JOUR DE L'INDEX
-      readIndex += ratio;
-     // On boucle l'index
-      
-      if ( writeIdx >=1024 ) {
-        readIndex=0;
-        writeIdx=0;
-        if (ecritureA==true)
-          ecritureA=false;
-        else
-          ecritureA=true;
-      }
-        
+  if (!inBlock || !outBlock) {
+    if (inBlock) release(inBlock);
+    if (outBlock) release(outBlock);
+    return;
   }
+
+  // 1. Écriture dans le buffer actif
+  for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+    int idx = (writeIdx + i) % BUF_SIZE;
+    if (ecritureA)
+      audioBuffer[idx] = inBlock->data[i];
+    else
+      audioBuffer2[idx] = inBlock->data[i];
+  }
+
+  writeIdx += AUDIO_BLOCK_SAMPLES;
+
+  // 2. Attendre que le premier buffer soit plein
+  if (!bufferPret) {
+    for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++)
+      outBlock->data[i] = 0;
+
+    if (writeIdx >= BUF_SIZE) {
+      writeIdx = 0;
+      ecritureA = !ecritureA;
+      bufferPret = true;
+      readIndex = 0.0f;
+    }
+
+    release(inBlock);
+    transmit(outBlock, 0);
+    release(outBlock);
+    return;
+  }
+
+  // 3. Lecture depuis le buffer inactif avec crossfade aux transitions
+  for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
+    int base = (int)readIndex % BUF_SIZE;
+    int next = (base + 1) % BUF_SIZE;
+    float fraction = readIndex - (int)readIndex;
+
+    // Sample du buffer inactif (lecture normale)
+    float sActif;
+    if (ecritureA)
+      sActif = (audioBuffer2[base] * (1.0f - fraction)) + (audioBuffer2[next] * fraction);
+    else
+      sActif = (audioBuffer[base] * (1.0f - fraction)) + (audioBuffer[next] * fraction);
+
+    // Sample du buffer actif (pour le crossfade)
+    float sAutre;
+    if (ecritureA)
+      sAutre = (audioBuffer[base] * (1.0f - fraction)) + (audioBuffer[next] * fraction);
+    else
+      sAutre = (audioBuffer2[base] * (1.0f - fraction)) + (audioBuffer2[next] * fraction);
+
+    float sample = sActif;
+
+    // Crossfade sur les 20 premiers échantillons après un swap
+    if (crossfadeCounter < CROSSFADE_SAMPLES) {
+      float alpha = (float)crossfadeCounter / (float)CROSSFADE_SAMPLES;
+      sample = (sAutre * (1.0f - alpha)) + (sActif * alpha);
+      crossfadeCounter++;
+    }
+
+    // Crossfade sur les 20 derniers échantillons avant le prochain swap
+    int samplesAvantSwap = BUF_SIZE - (int)readIndex;
+    if (samplesAvantSwap <= CROSSFADE_SAMPLES && samplesAvantSwap > 0) {
+      float alpha = (float)samplesAvantSwap / (float)CROSSFADE_SAMPLES;
+      sample = (sActif * alpha) + (sAutre * (1.0f - alpha));
+    }
+
+    outBlock->data[i] = (int16_t)(sample * gain);
+
+    readIndex += ratio;
+    if (readIndex >= BUF_SIZE) readIndex -= BUF_SIZE;
+  }
+
+  // 4. Swap sans reset du readIndex
+  if (writeIdx >= BUF_SIZE) {
+    writeIdx = 0;
+    ecritureA = !ecritureA;
+    crossfadeCounter = 0; // démarre le crossfade
+  }
+
   release(inBlock);
   transmit(outBlock, 0);
   release(outBlock);
