@@ -4,18 +4,18 @@
 #include "Arduino.h"
 #include "AudioStream.h"
 #include "Audio.h"
-
 #include "Fm.h"
 
 #define AUDIO_OUTPUTS 1
 #define AUDIO_INPUTS 1
+#define BUF_SIZE 2048
+#define CROSSFADE_SAMPLES 20
 
 class MyDsp : public AudioStream
 {
   public:
     MyDsp();
     ~MyDsp();
-    
     virtual void update(void);
     void setCFreq(float freq);
     void setMFreq(float freq);
@@ -26,15 +26,15 @@ class MyDsp : public AudioStream
   private:
     Fm fm;
     float ratio = 1.0;
-    float sample = 0.0;
     float readIndex = 0.0;
-    float readIndexB = 512.0;
-    int16_t audioBuffer[1024]; // tampon circulaire 
-    int16_t audioBuffer2[1024]; // tampon circulaire 
+    int16_t audioBuffer[BUF_SIZE];
+    int16_t audioBuffer2[BUF_SIZE];
     bool ecritureA = true;
+    bool bufferPret = false;
     int writeIdx = 0;
-    float gain ;
+    float gain = 1.0;
     audio_block_t *inputQueueArray[1];
+    int crossfadeCounter = 0;
 };
 
 #endif
