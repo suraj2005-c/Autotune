@@ -26,7 +26,7 @@ const int scaleSize = 25;
 
 float ratio = 1.0;
 float val_pot, valPot2;
-
+float ratioFinal=1.0;
 float findClosestNote(float inputFreq);
 
 void setup() {
@@ -42,23 +42,30 @@ void setup() {
 }
 
 void loop() {
-  val_pot = analogRead(19) / 1024.0;
-  valPot2 = analogRead(22) / 1024.0;
+  val_pot = analogRead(A0) / 1024.0;
+  valPot2 = analogRead(A2) / 1024.0;
 
   // Gain minimum à 0.3 pour éviter silence total si pot à 0
-  float gainValue = map(val_pot, 0.0, 1.0, 0.3, 1.0);
-  monAutoTune.setGain(gainValue);
-
+  /*float gainValue = map(val_pot, 0.0, 1.0, 0.3, 1.0);
+  monAutoTune.setGain(gainValue);*/
+  monAutoTune.setGain(val_pot);
   if (notefreq.available()) {
     float freq = notefreq.read();
     if (notefreq.probability() > 0.6) {
       float freqCor = findClosestNote(freq);
       ratio = constrain(freqCor / freq, 0.5f, 2.0f);
-      monAutoTune.setRatio(ratio);
+      ratioFinal = ratio * (valPot2 * 2.0); // Le potard multiplie le ratio de l'autotune
+
+      monAutoTune.setRatio(ratioFinal);
       Serial.print("Entrée: "); Serial.print(freq);
       Serial.print(" Hz | Cible: "); Serial.print(freqCor);
       Serial.print(" Hz | Ratio: "); Serial.println(ratio);
-      Serial.print("Gain: "); Serial.println(gainValue);
+      Serial.print("Gain: "); //Serial.println(gainValue);
+      Serial.print("val_pot: "); Serial.println(val_pot);
+      Serial.print("valPot2: "); Serial.println(valPot2);
+
+
+
     }
   }
 }

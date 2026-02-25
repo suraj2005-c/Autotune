@@ -9,7 +9,7 @@
 #define AUDIO_OUTPUTS 1
 #define AUDIO_INPUTS 1
 #define BUF_SIZE 2048
-#define CROSSFADE_SAMPLES 20
+#define CROSSFADE_SAMPLES 100
 
 class MyDsp : public AudioStream
 {
