@@ -26,10 +26,15 @@ class MyDsp : public AudioStream
   private:
     Fm fm;
     float ratio = 1.0;
+    float sample = 0.0;
     float readIndex = 0.0;
+    float readIndexB = 512.0;
     int16_t audioBuffer[1024]; // tampon circulaire 
+    int16_t audioBuffer2[1024]; // tampon circulaire 
+    bool ecritureA = true;
     int writeIdx = 0;
-    float gain = 1.0;
+    float gain ;
+    audio_block_t *inputQueueArray[1];
 };
 
 #endif

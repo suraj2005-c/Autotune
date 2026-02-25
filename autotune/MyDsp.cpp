@@ -1,13 +1,9 @@
 #include "MyDsp.h"
 
-
-
 #define MULT_16 32767
 
 MyDsp::MyDsp() : 
 AudioStream(AUDIO_INPUTS, new audio_block_t*[AUDIO_INPUTS]),
-
-
 
 fm(AUDIO_SAMPLE_RATE_EXACT)
 {
@@ -35,43 +31,50 @@ void MyDsp::setGain(float g){
 
 void MyDsp::update(void) {
   audio_block_t *inBlock = receiveReadOnly(0);
+  audio_block_t* outBlock = allocate();
   if (!inBlock) return;
 
   // 1. Stockage des données entrantes
   for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-    audioBuffer[writeIdx] = inBlock->data[i]; 
-    writeIdx = (writeIdx + 1) % 1024; 
-  }
-  release(inBlock);
+    if (ecritureA){
+      audioBuffer[writeIdx] = inBlock->data[i]; 
+    }
+    else
+      audioBuffer2[writeIdx] = inBlock->data[i]; 
 
-  // 2. Préparer le bloc de sortie
-  audio_block_t* outBlock = allocate();
-  if (outBlock) {
-    for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-      // INTERPOLATION
-      int base = (int)readIndex;
-      int next = (base + 1) % 1024;
-      float fraction = readIndex - (float)base;
+    int base = (int)readIndex;
+    int next = (base + 1) % 1024;
+    float fraction = readIndex - (float)base;
 
-      float sample = (audioBuffer[base] * (1.0f - fraction)) + (audioBuffer[next] * fraction);
-      sample=sample*gain;
-      outBlock->data[i] = (int16_t)sample;
+ // INTERPOLATION
+
+     if (ecritureA) 
+      sample = (audioBuffer2[base] * (1.0f - fraction)) + (audioBuffer2[next] * fraction);
+    else
+      sample = (audioBuffer[base] * (1.0f - fraction)) + (audioBuffer[next] * fraction);
+
+
+    sample=sample*gain;
+
+    outBlock->data[i] = (int16_t)sample;
+
+    writeIdx++; 
 
       // MISE À JOUR DE L'INDEX
       readIndex += ratio;
-      if (readIndex >= 1024) readIndex -= 1024;
-
-      // PROTECTION : Si la lecture rattrape l'écriture (trop près), 
-      // on rajoute un petit saut de sécurité (Latency gap)
-      float distance = writeIdx - readIndex;
-      if (distance < 0) distance += 1024; 
+     // On boucle l'index
       
-      if (distance < 128) { // Si on est à moins d'un bloc de distance
-          readIndex -= 256; // On recule la lecture pour laisser de la marge
-          if (readIndex < 0) readIndex += 1024;
+      if ( writeIdx >=1024 ) {
+        readIndex=0;
+        writeIdx=0;
+        if (ecritureA==true)
+          ecritureA=false;
+        else
+          ecritureA=true;
       }
-    }
-    transmit(outBlock, 0);
-    release(outBlock);
+        
   }
+  release(inBlock);
+  transmit(outBlock, 0);
+  release(outBlock);
 }
