@@ -15,19 +15,22 @@ AudioConnection patch2(micInput, 0, monAutoTune, 0);
 AudioConnection patch3(monAutoTune, 0, headphones, 0);
 AudioConnection patch4(monAutoTune, 0, headphones, 1);
 
+const int scaleSize = 25;
 // --- GAMME ---
-float noteRef[] = {
+float noteRef[scaleSize] = {
   49.00, 55.00, 61.74,
   65.41, 73.42, 82.41, 87.31, 98.00, 110.00, 123.47,
   130.81, 146.83, 164.81, 174.61, 196.00, 220.00, 246.94,
   261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25
 };
-const int scaleSize = 25;
+
 
 float ratio = 1.0;
 float val_pot, valPot2;
 float ratioFinal=1.0;
 float findClosestNote(float inputFreq);
+float ratioLisse = 1.0; 
+const float coeffLissage = 0.05;
 
 void setup() {
   Serial.begin(115200);
@@ -55,8 +58,8 @@ void loop() {
       float freqCor = findClosestNote(freq);
       ratio = constrain(freqCor / freq, 0.5f, 2.0f);
       ratioFinal = ratio * (valPot2 * 2.0); // Le potard multiplie le ratio de l'autotune
-
-      monAutoTune.setRatio(ratioFinal);
+      ratioLisse = ratioLisse + (ratioFinal - ratioLisse) * coeffLissage;
+      monAutoTune.setRatio(ratioLisse);
       Serial.print("Entrée: "); Serial.print(freq);
       Serial.print(" Hz | Cible: "); Serial.print(freqCor);
       Serial.print(" Hz | Ratio: "); Serial.println(ratio);
