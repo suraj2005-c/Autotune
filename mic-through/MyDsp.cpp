@@ -100,7 +100,7 @@ void MyDsp::update(void) {
     if (readIndex >= BUF_SIZE) readIndex -= BUF_SIZE;
   }
 
-  // 4. Swap sans reset du readIndex
+  // Swap sans reset du readIndex
   if (writeIdx >= BUF_SIZE) {
     writeIdx = 0;
     ecritureA = !ecritureA;
