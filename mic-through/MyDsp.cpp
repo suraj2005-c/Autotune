@@ -29,7 +29,7 @@ void MyDsp::update(void) {
     return;
   }
 
-  // 1. Écriture dans le buffer actif
+  // Écriture dans le buffer actif
   for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
     int idx = (writeIdx + i) % BUF_SIZE;
     if (ecritureA)
@@ -40,7 +40,7 @@ void MyDsp::update(void) {
 
   writeIdx += AUDIO_BLOCK_SAMPLES;
 
-  // 2. Attendre que le premier buffer soit plein
+  // Attendre que le premier buffer soit plein
   if (!bufferPret) {
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++)
       outBlock->data[i] = 0;
@@ -58,7 +58,7 @@ void MyDsp::update(void) {
     return;
   }
 
-  // 3. Lecture depuis le buffer inactif avec crossfade aux transitions
+  // Lecture depuis le buffer inactif avec crossfade aux transitions
   for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
     int base = (int)readIndex % BUF_SIZE;
     int next = (base + 1) % BUF_SIZE;
